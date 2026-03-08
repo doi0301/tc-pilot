@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, ExternalLink } from "lucide-react";
+import { Loader2, ExternalLink, Download } from "lucide-react";
+import { exportIssuesToXlsx } from "@/lib/issue-xlsx-export";
 import type { Issue } from "@/types";
 
 const SEVERITY_STYLE: Record<string, { bg: string; text: string }> = {
@@ -74,11 +75,12 @@ export default function IssueLogTab({ projectId }: { projectId?: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          심각도:
-        </span>
-        <select
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            심각도:
+          </span>
+          <select
           value={severityFilter}
           onChange={(e) => setSeverityFilter(e.target.value)}
           className="text-sm px-2 py-1 rounded border"
@@ -94,6 +96,15 @@ export default function IssueLogTab({ projectId }: { projectId?: string }) {
           <option value="Minor">Minor</option>
           <option value="Low">Low</option>
         </select>
+        </div>
+        <button
+          type="button"
+          onClick={() => exportIssuesToXlsx(filtered)}
+          className="btn-secondary inline-flex items-center gap-1.5 shrink-0"
+        >
+          <Download size={16} />
+          xlsx 다운로드
+        </button>
       </div>
 
       <div className="rounded-lg border overflow-x-auto" style={{ borderColor: "var(--border-default)" }}>

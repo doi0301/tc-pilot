@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClaudeMessage } from "@/lib/claude";
 import { TC_GENERATION_SYSTEM_PROMPT } from "@/lib/prompts";
 import { supabase } from "@/lib/supabase";
+import { extractJsonArray } from "@/lib/json-parse-fallback";
 import type { Spec, TestCase } from "@/types";
 
 async function getDefaultProjectId(): Promise<string | undefined> {
@@ -14,19 +15,13 @@ async function getDefaultProjectId(): Promise<string | undefined> {
   return data?.[0]?.id;
 }
 
-function extractJsonArray(text: string): TestCase[] {
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error("JSON 배열을 찾을 수 없습니다.");
-  const parsed = JSON.parse(jsonMatch[0]);
-  if (!Array.isArray(parsed)) throw new Error("배열이 아닙니다.");
-  return parsed as TestCase[];
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     let projectId: string | undefined = body.projectId;
     const specIds: string[] | undefined = body.specIds;
+    const batchTitle: string | undefined = body.batchTitle?.trim();
+    const specsFromClient: Spec[] | undefined = body.specs;
 
     if (!projectId) projectId = await getDefaultProjectId();
     if (!projectId) {
@@ -37,7 +32,9 @@ export async function POST(request: NextRequest) {
     }
 
     let specs: Spec[];
-    if (specIds && specIds.length > 0) {
+    if (specsFromClient && specsFromClient.length > 0) {
+      specs = specsFromClient.map((s) => ({ ...s, project_id: projectId }));
+    } else if (specIds && specIds.length > 0) {
       const { data, error } = await supabase
         .from("specs")
         .select("*")
@@ -61,6 +58,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!batchTitle) {
+      return NextResponse.json(
+        { error: "배치 제목을 입력해주세요." },
+        { status: 400 }
+      );
+    }
+
+    const { data: batch, error: batchError } = await supabase
+      .from("tc_batches")
+      .insert({ project_id: projectId, title: batchTitle })
+      .select()
+      .single();
+
+    if (batchError || !batch) {
+      console.error("tc_batches insert error:", batchError);
+      return NextResponse.json(
+        { error: "배치 생성 실패: " + (batchError?.message ?? "알 수 없음") },
+        { status: 500 }
+      );
+    }
+
     const specsJson = JSON.stringify(specs, null, 2);
     const userPrompt = `다음 스펙 JSON을 기반으로 테스트 케이스를 도출해주세요. 순수 JSON 배열만 출력하세요.\n\n${specsJson}`;
 
@@ -72,11 +90,12 @@ export async function POST(request: NextRequest) {
 
     let testCases: TestCase[];
     try {
-      testCases = extractJsonArray(rawResponse);
+      testCases = extractJsonArray<TestCase>(rawResponse);
     } catch (parseErr) {
       console.error("TC JSON parse error:", parseErr);
+      const msg = parseErr instanceof Error ? parseErr.message : "AI 응답 파싱 실패";
       return NextResponse.json(
-        { error: "AI 응답 파싱 실패. 다시 시도해주세요." },
+        { error: msg },
         { status: 500 }
       );
     }
@@ -87,6 +106,7 @@ export async function POST(request: NextRequest) {
       const spec = specByScreenCode.get(tc.screen_code);
       return {
         project_id: projectId,
+        batch_id: batch.id,
         spec_id: spec?.id ?? null,
         tc_id: tc.tc_id ?? "",
         section: tc.section ?? "",
@@ -125,11 +145,12 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** GET /api/tc — projectId로 test_cases 조회 */
+/** GET /api/tc — projectId, batchId로 test_cases 조회 */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     let projectId = searchParams.get("projectId");
+    const batchId = searchParams.get("batchId");
 
     if (!projectId) {
       const { data } = await supabase.from("projects").select("id").limit(1);
@@ -140,11 +161,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ testCases: [] });
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("test_cases")
       .select("*")
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: false });
+      .eq("project_id", projectId);
+
+    if (batchId) {
+      if (batchId === "__unbatched__") {
+        query = query.is("batch_id", null);
+      } else {
+        query = query.eq("batch_id", batchId);
+      }
+    }
+
+    const { data, error } = await query.order("created_at", { ascending: false });
 
     if (error) throw error;
     return NextResponse.json({ testCases: data ?? [] });

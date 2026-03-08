@@ -25,10 +25,19 @@ CREATE TABLE IF NOT EXISTS specs (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- tc_batches: TC 생성 배치 (제목별 그룹)
+CREATE TABLE IF NOT EXISTS tc_batches (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- test_cases
 CREATE TABLE IF NOT EXISTS test_cases (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
+  batch_id UUID REFERENCES tc_batches(id) ON DELETE SET NULL,
   spec_id UUID REFERENCES specs(id) ON DELETE SET NULL,
   tc_id TEXT NOT NULL,
   section TEXT,

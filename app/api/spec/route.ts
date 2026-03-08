@@ -11,19 +11,12 @@ import {
   SPEC_CONVERSION_USER_PROMPT_PREFIX,
 } from "@/lib/prompts";
 import { supabase } from "@/lib/supabase";
+import { extractJsonArray } from "@/lib/json-parse-fallback";
 import type { Spec } from "@/types";
 
 async function getDefaultProjectId(): Promise<string | undefined> {
   const { data } = await supabase.from("projects").select("id").limit(1);
   return data?.[0]?.id;
-}
-
-function extractJsonArray(text: string): Spec[] {
-  const jsonMatch = text.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) throw new Error("JSON 배열을 찾을 수 없습니다.");
-  const parsed = JSON.parse(jsonMatch[0]);
-  if (!Array.isArray(parsed)) throw new Error("배열이 아닙니다.");
-  return parsed as Spec[];
 }
 
 export async function POST(request: NextRequest) {
@@ -77,11 +70,12 @@ export async function POST(request: NextRequest) {
 
     let specs: Spec[];
     try {
-      specs = extractJsonArray(rawResponse);
+      specs = extractJsonArray<Spec>(rawResponse);
     } catch (parseErr) {
       console.error("Spec JSON parse error:", parseErr);
+      const msg = parseErr instanceof Error ? parseErr.message : "AI 응답 파싱 실패";
       return NextResponse.json(
-        { error: "AI 응답 파싱 실패. 다시 시도해주세요." },
+        { error: msg },
         { status: 500 }
       );
     }

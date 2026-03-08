@@ -35,12 +35,10 @@
 | T-017 | TC 생성 플로우 연결 | ✅ |
 | T-018 | TC 생성 로딩 UI | ✅ |
 
-### 미완료
-| ID | 태스크 | 비고 |
+### Day 2 (추가)
+| ID | 태스크 | 상태 |
 |----|--------|------|
-| T-013 | EditableTable 공통 컴포넌트 | P1, TanStack Table 기반 |
-| T-019 | JSON 파싱 fallback | P1 |
-| T-020 | 관점별/기능그룹별 필터 | P2 |
+| T-013 | EditableTable 공통 컴포넌트 | ✅ |
 
 ---
 
@@ -55,13 +53,17 @@
 | T-026 | lib/notion.ts | ✅ |
 | T-027 | POST /api/notion | ✅ |
 | T-028 | [Notion 등록] 버튼 연동 | ✅ |
+| T-029 | 이슈 AI 보강 | ✅ |
 
 ---
 
 ### Day 4: 내보내기 & UI 폴리싱
 | ID | 태스크 | 상태 |
 |----|--------|------|
+| T-020 | 관점별/기능그룹별 필터 | ✅ |
+| T-030 | Notion 실패 시 xlsx 백업 안내 | ✅ |
 | T-031 | TC 목록 xlsx 다운로드 | ✅ |
+| T-032 | 이슈 목록 xlsx 다운로드 | ✅ |
 | T-033 | IssueLogTab (탭 3) | ✅ |
 | T-034 | 탭 네비게이션 Design System | ✅ |
 
@@ -75,10 +77,43 @@
 
 ---
 
+### 안정성
+| ID | 태스크 | 상태 |
+|----|--------|------|
+| T-019 | JSON 파싱 fallback | ✅ |
+
+### UI 폴리싱
+| ID | 태스크 | 상태 |
+|----|--------|------|
+| T-035 | 버튼/뱃지 Design System | ✅ |
+| T-039 | 스크린샷 첨부 (P3) | ✅ |
+
+---
+
+### 추가 구현 (문서 외)
+| 항목 | 설명 |
+|------|------|
+| TC 배치 히스토리 (tc_batches) | TCTab 1depth 배치 리스트 + 2depth 상세 테이블, api/tc/batches |
+| 파싱만 테스트 모드 (parseOnly) | SpecTab parseOnly 체크박스, api/spec 분기 |
+
+### SRD 반영
+| ID | 항목 | 상태 |
+|----|------|------|
+| F-007-2 | 상단 프로젝트명 표시 | ✅ |
+
+---
+
 ## 다음 단계 (선택)
 
 | ID | 태스크 | 비고 |
 |----|--------|------|
 | T-038 | 데모 시나리오 검증 | 배포 후 E2E 테스트 |
-| T-013 | EditableTable 공통 컴포넌트 | P1 |
-| T-019 | JSON 파싱 fallback | P1 |
+
+---
+
+## T-039 스크린샷 Storage 설정
+
+스크린샷 업로드 사용 시 Supabase Storage 버킷 생성 필요:
+
+1. `docs/supabase/migration-storage-screenshots.sql` 실행
+2. 또는 Dashboard: Storage > New bucket > `issue-screenshots`, Public: true

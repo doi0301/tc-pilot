@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Loader2, Download, ImagePlus, Trash2 } from "lucide-react";
+import { exportIssuesToXlsx } from "@/lib/issue-xlsx-export";
 import type { TestCase, Issue } from "@/types";
 
 const SEVERITY_OPTIONS: Issue["severity"][] = ["Critical", "Major", "Minor", "Low"];
@@ -25,7 +26,12 @@ export default function IssuePanel({
   const [actual, setActual] = useState("");
   const [severity, setSeverity] = useState<Issue["severity"]>("Major");
   const [loading, setLoading] = useState(false);
+  const [enhanceLoading, setEnhanceLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notionFailed, setNotionFailed] = useState(false);
+  const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isOpen = !!tc;
 
@@ -37,8 +43,41 @@ export default function IssuePanel({
       setActual("");
       setSeverity("Major");
       setError(null);
+      setNotionFailed(false);
+      setScreenshotUrl(null);
     }
   }, [tc]);
+
+  const handleEnhance = async () => {
+    if (!tc || !actual.trim()) {
+      setError("실제결과를 먼저 입력해주세요.");
+      return;
+    }
+
+    setError(null);
+    setEnhanceLoading(true);
+
+    try {
+      const res = await fetch("/api/issue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tcContext: tc,
+          actualResult: actual,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "AI 보강 실패");
+
+      setReproductionSteps(data.reproductionSteps ?? reproductionSteps);
+      setActual(data.actual ?? actual);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "AI 보강 실패");
+    } finally {
+      setEnhanceLoading(false);
+    }
+  };
 
   const handleSubmit = async () => {
     const pid = projectId ?? tc?.project_id;
@@ -64,6 +103,7 @@ export default function IssuePanel({
             reproduction_steps: reproductionSteps,
             expected,
             actual,
+            screenshot_url: screenshotUrl ?? undefined,
           },
         }),
       });
@@ -73,10 +113,58 @@ export default function IssuePanel({
       onRegistered();
     } catch (e) {
       setError(e instanceof Error ? e.message : "등록 실패");
+      setNotionFailed(true);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleXlsxBackup = () => {
+    if (!tc) return;
+    const backupIssue: Issue = {
+      tc_id: tc.tc_id,
+      title,
+      severity,
+      reproduction_steps: reproductionSteps,
+      expected,
+      actual,
+      ...(screenshotUrl && { screenshot_url: screenshotUrl }),
+    };
+    exportIssuesToXlsx([backupIssue], `이슈_${tc.tc_id}_백업.xlsx`);
+  };
+
+  const handleScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("이미지 파일만 첨부 가능합니다 (JPEG, PNG, GIF, WebP).");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("파일 크기는 5MB 이하여야 합니다.");
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload/screenshot", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "업로드 실패");
+      setScreenshotUrl(data.url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "스크린샷 업로드 실패");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveScreenshot = () => setScreenshotUrl(null);
 
   if (!isOpen) return null;
 
@@ -106,8 +194,8 @@ export default function IssuePanel({
           </h2>
           <button
             onClick={onClose}
-            className="p-2 rounded hover:bg-[var(--bg-hover)] transition-colors"
-            style={{ color: "var(--text-secondary)" }}
+            className="btn-ghost p-2"
+            aria-label="닫기"
           >
             <X size={20} />
           </button>
@@ -185,48 +273,156 @@ export default function IssuePanel({
 
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+              스크린샷
+            </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={handleScreenshotChange}
+              className="hidden"
+            />
+            {screenshotUrl ? (
+              <div className="space-y-2">
+                <div className="relative inline-block">
+                  <img
+                    src={screenshotUrl}
+                    alt="스크린샷"
+                    className="max-h-40 rounded border object-contain"
+                    style={{ borderColor: "var(--border-default)" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleRemoveScreenshot}
+                    className="absolute -top-1 -right-1 p-1 rounded-full"
+                    style={{
+                      background: "var(--status-fail-bg)",
+                      color: "var(--status-fail-text)",
+                    }}
+                    aria-label="스크린샷 제거"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                <p className="text-xs" style={{ color: "var(--text-subtle)" }}>
+                  첨부됨 (5MB 이하, JPEG/PNG/GIF/WebP)
+                </p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-full py-4 px-3 rounded-lg border-2 border-dashed flex items-center justify-center gap-2 text-sm"
+                style={{
+                  borderColor: "var(--border-bold)",
+                  background: "var(--bg-surface)",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                {uploading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={18} />
+                    업로드 중...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus size={18} />
+                    이미지 첨부 (선택)
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
               심각도
             </label>
-            <div className="flex gap-3">
-              {SEVERITY_OPTIONS.map((s) => (
-                <label key={s} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="severity"
-                    value={s}
-                    checked={severity === s}
-                    onChange={() => setSeverity(s)}
-                  />
-                  <span className="text-sm" style={{ color: "var(--text-primary)" }}>
+            <div className="flex flex-wrap gap-2">
+              {SEVERITY_OPTIONS.map((s) => {
+                const isSelected = severity === s;
+                const style = {
+                  Critical: { bg: "var(--severity-critical-bg)", text: "var(--severity-critical-text)" },
+                  Major: { bg: "var(--severity-major-bg)", text: "var(--severity-major-text)" },
+                  Minor: { bg: "var(--severity-minor-bg)", text: "var(--severity-minor-text)" },
+                  Low: { bg: "var(--severity-low-bg)", text: "var(--severity-low-text)" },
+                }[s];
+                return (
+                  <label
+                    key={s}
+                    className={`flex items-center cursor-pointer px-2.5 py-1 rounded text-sm font-medium border-2 transition-all ${
+                      isSelected ? "" : "opacity-70 hover:opacity-100"
+                    }`}
+                    style={{
+                      background: style.bg,
+                      color: style.text,
+                      borderColor: isSelected ? "var(--border-focused)" : "transparent",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="severity"
+                      value={s}
+                      checked={isSelected}
+                      onChange={() => setSeverity(s)}
+                      className="sr-only"
+                    />
                     {s}
-                  </span>
-                </label>
-              ))}
+                  </label>
+                );
+              })}
             </div>
           </div>
 
           {error && (
             <div
-              className="p-3 rounded-md text-sm"
+              className="p-3 rounded-md text-sm space-y-2"
               style={{ background: "var(--status-fail-bg)", color: "var(--status-fail-text)" }}
             >
-              {error}
+              <p>{error}</p>
+              {notionFailed && (
+                <>
+                  <p className="font-medium">xlsx로 다운로드하여 수동 등록하세요.</p>
+                  <button
+                    type="button"
+                    onClick={handleXlsxBackup}
+                    className="btn-secondary inline-flex items-center gap-1.5 text-xs"
+                  >
+                    <Download size={14} />
+                    이슈 xlsx 다운로드
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
 
         <footer
-          className="p-4 border-t shrink-0 flex justify-end"
+          className="p-4 border-t shrink-0 flex justify-end gap-2"
           style={{
             background: "var(--bg-sidebar)",
             borderColor: "var(--border-default)",
           }}
         >
           <button
+            onClick={handleEnhance}
+            disabled={enhanceLoading || loading || !actual.trim()}
+            className="btn-secondary inline-flex items-center gap-2"
+          >
+            {enhanceLoading ? (
+              <>
+                <Loader2 className="animate-spin" size={18} />
+                AI가 이슈 내용을 정리하고 있어요...
+              </>
+            ) : (
+              "AI 보강"
+            )}
+          </button>
+          <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-4 py-2 rounded-md font-semibold text-white flex items-center gap-2 disabled:opacity-60"
-            style={{ background: "var(--point-default)" }}
+            className="btn-primary inline-flex items-center gap-2"
           >
             {loading ? (
               <>

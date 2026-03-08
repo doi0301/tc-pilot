@@ -16,7 +16,9 @@ export async function createClaudeMessage(
   options?: { maxTokens?: number; model?: string }
 ) {
   if (!anthropic) {
-    throw new Error("ANTHROPIC_API_KEY is not configured.");
+    throw new Error(
+      "Claude API 키가 설정되지 않았습니다. .env.local에 ANTHROPIC_API_KEY를 추가해주세요. (설정 방법: docs/API_KEYS_GUIDE.md) AI 없이 파싱만 테스트하려면 '파싱만 테스트' 체크박스를 사용하세요."
+    );
   }
 
   const response = await anthropic.messages.create({

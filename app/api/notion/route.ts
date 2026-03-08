@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
         reproduction_steps: issue.reproduction_steps,
         expected: issue.expected,
         actual: issue.actual,
+        screenshot_url: issue.screenshot_url ?? null,
         notion_page_id: pageId,
       })
       .select()

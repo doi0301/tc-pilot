@@ -17,9 +17,18 @@ export interface Spec {
   notes: string;
 }
 
+export interface TcBatch {
+  id: string;
+  project_id: string;
+  title: string;
+  created_at?: string | null;
+  tc_count?: number;
+}
+
 export interface TestCase {
   id?: string;
   project_id?: string;
+  batch_id?: string;
   spec_id?: string;
   tc_id: string;
   section: string;
@@ -33,6 +42,7 @@ export interface TestCase {
   expected_result: string;
   status: "PASS" | "FAIL" | "진행중" | "미확인";
   issue_memo?: string;
+  created_at?: string;
 }
 
 export interface Issue {
