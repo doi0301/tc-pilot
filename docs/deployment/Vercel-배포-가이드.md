@@ -22,7 +22,10 @@
 
 ---
 
-## 3. 환경변수 설정
+## 3. 환경변수 설정 (배포 전 필수)
+
+**중요:** 첫 배포 전에 **Configure Project** 화면에서 환경변수를 반드시 추가하세요.  
+설정하지 않으면 빌드는 통과하지만 앱 실행 시 DB 연결이 되지 않습니다.
 
 **Configure Project** 화면에서 **Environment Variables** 섹션으로 이동 후 아래 변수 추가:
 
@@ -75,3 +78,9 @@
 ### CORS / 네트워크
 
 - Next.js API Routes는 동일 도메인에서 호출되므로 CORS 이슈 없음
+
+### "No Output Directory named public" 오류
+
+- **원인**: Vercel 프로젝트 설정에서 Output Directory가 `public`으로 지정됨 (Next.js에 맞지 않음)
+- **해결**: Vercel 대시보드 → **Settings** → **General** → **Build & Development Settings** → **Output Directory**를 **비워두기** (Override 체크 해제)
+- `vercel.json`에 `framework: "nextjs"`가 있으면 Next.js용 기본 설정이 적용됩니다.
