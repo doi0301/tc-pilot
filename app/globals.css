@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* TC Pilot Design System v1.0 — docs/design/tc-pilot-design-system-v1.0.md */
+
+:root {
+  /* Point Color — Warm Red */
+  --point-default: #e04545;
+  --point-hover: #c93c3c;
+  --point-pressed: #b33333;
+  --point-subtle: #fde8e8;
+  --point-muted: #f5cccc;
+
+  /* Neutral Base */
+  --bg-surface: #ffffff;
+  --bg-sidebar: #f7f8f9;
+  --bg-hover: #f1f2f4;
+  --bg-selected: #fde8e8;
+  --bg-elevated: #ffffff;
+  --bg-page: #fafbfc;
+  --bg-overlay: rgba(23, 43, 77, 0.5);
+
+  --border-default: #ebecf0;
+  --border-focused: #e04545;
+  --border-bold: #dfe1e6;
+  --border-subtle: #f4f5f7;
+
+  --text-primary: #172b4d;
+  --text-secondary: #6b778c;
+  --text-subtle: #97a0af;
+  --text-inverse: #ffffff;
+  --text-link: #e04545;
+  --text-point: #e04545;
+
+  /* Status Colors — TC P/F */
+  --status-pass-bg: #e6f4ea;
+  --status-pass-text: #1b7d3f;
+  --status-pass-badge: #d4edda;
+  --status-pass-dot: #34a853;
+
+  --status-fail-bg: #fde8e8;
+  --status-fail-text: #c93c3c;
+  --status-fail-badge: #f5cccc;
+  --status-fail-dot: #e04545;
+
+  --status-progress-bg: #fff8e6;
+  --status-progress-text: #b87503;
+  --status-progress-badge: #ffefc6;
+  --status-progress-dot: #e8a317;
+
+  --status-pending-bg: #f4f5f7;
+  --status-pending-text: #6b778c;
+  --status-pending-badge: #ebecf0;
+  --status-pending-dot: #97a0af;
+
+  /* Severity */
+  --severity-critical-bg: #e04545;
+  --severity-critical-text: #ffffff;
+  --severity-major-bg: #e8873d;
+  --severity-major-text: #ffffff;
+  --severity-minor-bg: #5b8def;
+  --severity-minor-text: #ffffff;
+  --severity-low-bg: #dfe1e6;
+  --severity-low-text: #42526e;
+
+  /* Perspective Tags */
+  --tag-normal-bg: #e6f4ea;
+  --tag-normal-text: #1b7d3f;
+  --tag-normal-dot: #34a853;
+  --tag-exception-bg: #fff3cd;
+  --tag-exception-text: #856404;
+  --tag-exception-dot: #e8a317;
+  --tag-authority-bg: #ede7f6;
+  --tag-authority-text: #5e35a8;
+  --tag-authority-dot: #7e57c2;
+  --tag-error-bg: #fde8e8;
+  --tag-error-text: #c93c3c;
+  --tag-error-dot: #e04545;
+  --tag-data-bg: #e3ecf6;
+  --tag-data-text: #2c5282;
+  --tag-data-dot: #5b8def;
+
+  /* Priority Badge */
+  --priority-p1-bg: #e04545;
+  --priority-p1-text: #ffffff;
+  --priority-p2-bg: #e8873d;
+  --priority-p2-text: #ffffff;
+  --priority-p3-bg: #5b8def;
+  --priority-p3-text: #ffffff;
+  --priority-p4-bg: #dfe1e6;
+  --priority-p4-text: #42526e;
+
+  /* Typography */
+  --font-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR",
+    "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "SF Mono", "Fira Code", Consolas, monospace;
+
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  /* Spacing */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Layout */
+  --sidebar-width: 240px;
+  --header-height: 56px;
+  --filter-bar-height: 48px;
+  --table-row-height: 40px;
+  --table-header-height: 36px;
+  --slide-panel-width: 480px;
+
+  /* Border Radius */
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(23, 43, 77, 0.04);
+  --shadow-md: 0 4px 8px rgba(23, 43, 77, 0.08),
+    0 2px 4px rgba(23, 43, 77, 0.04);
+  --shadow-lg: 0 8px 16px rgba(23, 43, 77, 0.12),
+    0 4px 8px rgba(23, 43, 77, 0.06);
+  --shadow-panel: 0 12px 24px rgba(23, 43, 77, 0.15);
+
+  /* Transition */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+
+  /* Icon */
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
+
+  /* Breakpoint */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+}
+
+body {
+  font-family: var(--font-primary);
+  color: var(--text-primary);
+  background: var(--bg-page);
+}

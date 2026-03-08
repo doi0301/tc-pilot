@@ -1,0 +1,42 @@
+# TC Pilot — Cursor AI 코딩 가이드
+
+## 프로젝트 개요
+TC Pilot은 기획서 파일 업로드 → 스펙 변환 → TC 자동 생성 → 테스트 실행(P/F) → 이슈 등록(Notion)까지 하나의 흐름으로 연결하는 기획 테스트 도구입니다.
+
+## 필수 참조 문서
+- `docs/prd/tc-pilot-prd-v1.0.md` — 제품 요구사항
+- `docs/tc-pilot-srd-v1.0.md` — 소프트웨어 요구사항
+- `docs/tc-pilot-trd-v1.0.md` — 기술 요구사항, 아키텍처, API 명세
+- `docs/design/tc-pilot-design-system-v1.0.md` — 디자인 시스템 (컬러, 타이포, 컴포넌트)
+
+## 기술 스택
+- Next.js 14 (App Router), TypeScript, Tailwind CSS
+- Supabase (DB), Google Gemini API (AI), Notion API
+- SheetJS (xlsx), react-dropzone, TanStack Table
+
+## 코딩 규칙
+1. TypeScript strict 모드 사용
+2. 컴포넌트는 `components/` 폴더에 분리
+3. API 라우트는 `app/api/` 하위에 RESTful 구조
+4. 환경변수는 `.env.local`에만 저장 (절대 커밋 금지)
+5. PRD의 TC ID 형식 준수: `{화면코드}-{관점}-{순번}` (예: CS001-N-001)
+6. 테스트 관점: N(정상), E(예외), A(권한), R(에러), D(데이터)
+
+## AI 호출 시점 (Claude)
+1. 스펙 변환: 파일 업로드 시 → 표준 스펙 JSON
+2. TC 생성: 스펙 확인 후 → TC JSON 배열
+3. 이슈 보강: 실제결과 입력 후 → 보강된 이슈 텍스트
+
+## MVP 우선순위
+- P1(필수): 파일 업로드, 스펙 변환, TC 생성, P/F 추적, 이슈 패널, Notion 전송, xlsx 다운로드
+- P2(권장): AI 이슈 보강, 필터, 이슈 로그 탭
+- P3(선택): 스크린샷 첨부, 다중 프로젝트
+
+## 디렉터리 구조
+```
+app/          — 페이지, API 라우트
+components/   — UI 컴포넌트
+lib/          — Supabase, Gemini, Notion, 프롬프트
+types/        — TypeScript 타입
+docs/         — PRD, SRD, TRD, 참고자료
+```

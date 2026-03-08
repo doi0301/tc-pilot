@@ -1,0 +1,28 @@
+---
+description: TC Pilot 프로젝트 개발 가이드 - PRD/SRD/TRD 기반
+alwaysApply: true
+---
+
+# TC Pilot 개발 규칙
+
+## 프로젝트 목표
+기획서 → 스펙 변환 → TC 자동 생성 → 테스트 실행(P/F) → 이슈 등록(Notion) 하나의 흐름
+
+## 필수 문서 참조
+- `docs/prd/tc-pilot-prd-v1.0.md` - 제품 요구사항
+- `docs/tc-pilot-srd-v1.0.md` - 기능/비기능 요구사항
+- `docs/tc-pilot-trd-v1.0.md` - 기술 명세, API, 스키마
+- `docs/design/tc-pilot-design-system-v1.0.md` - 디자인 시스템 (Jira 스타일, Warm Red 포인트)
+
+## TC ID 형식
+`{화면코드}-{관점}-{순번}` 예: CS001-N-001
+관점: N(정상), E(예외), A(권한), R(에러), D(데이터)
+
+## 표준 스펙 필드
+화면코드, 화면명칭, 경로, 화면타입, 관련권한, 출력조건, 표시형식, 클릭동작, 비고
+
+## API 구조
+- POST /api/spec - 파일 → 스펙 변환 (Gemini)
+- POST /api/tc - 스펙 → TC 생성 (Gemini)
+- POST /api/issue - 이슈 AI 보강 (Gemini)
+- POST /api/notion - 이슈 Notion 전송

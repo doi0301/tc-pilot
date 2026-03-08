@@ -1,0 +1,19 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "TC Pilot — 기획 테스트 도구",
+  description: "기획서 → TC 자동 생성 → 테스트 실행 → 이슈 등록(Notion) 하나의 흐름",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ko">
+      <body className="antialiased">{children}</body>
+    </html>
+  );
+}
