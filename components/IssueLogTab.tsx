@@ -47,7 +47,14 @@ export default function IssueLogTab({ projectId }: { projectId?: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 py-12" style={{ color: "var(--text-secondary)" }}>
+      <div
+        className="flex items-center gap-2 py-12 rounded-lg border p-4"
+        style={{
+          color: "var(--text-secondary)",
+          background: "var(--bg-surface)",
+          borderColor: "var(--border-default)",
+        }}
+      >
         <Loader2 className="animate-spin" size={24} />
         <span>이슈 목록 불러오는 중...</span>
       </div>
@@ -57,10 +64,11 @@ export default function IssueLogTab({ projectId }: { projectId?: string }) {
   if (issues.length === 0) {
     return (
       <div
-        className="py-16 text-center rounded-lg border"
+        className="py-16 text-center rounded-lg border p-4"
         style={{
           background: "var(--bg-surface)",
           borderColor: "var(--border-default)",
+          boxShadow: "0 1px 2px rgba(23,43,77,0.04)",
         }}
       >
         <p className="text-lg font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
@@ -74,7 +82,14 @@ export default function IssueLogTab({ projectId }: { projectId?: string }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-4 p-4 rounded-lg border"
+      style={{
+        background: "var(--bg-surface)",
+        borderColor: "var(--border-default)",
+        boxShadow: "0 1px 2px rgba(23,43,77,0.04)",
+      }}
+    >
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <span className="text-sm" style={{ color: "var(--text-secondary)" }}>

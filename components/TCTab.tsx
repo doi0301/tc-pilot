@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, Download, FileText, ChevronRight, Pencil, Trash2 } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Loader2, Download, FileText, ChevronRight, Pencil, Trash2, Upload, ExternalLink, ArrowLeft } from "lucide-react";
 import DashboardCards, { PERSPECTIVE_LABEL } from "./DashboardCards";
 import IssuePanel from "./IssuePanel";
 import { exportTcToXlsx } from "@/lib/xlsx-export";
@@ -19,6 +19,13 @@ const PRIORITY_STYLE: Record<string, { bg: string; text: string }> = {
   P2: { bg: "var(--priority-p2-bg)", text: "var(--priority-p2-text)" },
   P3: { bg: "var(--priority-p3-bg)", text: "var(--priority-p3-text)" },
   P4: { bg: "var(--priority-p4-bg)", text: "var(--priority-p4-text)" },
+};
+
+const PRIORITY_TOOLTIP: Record<string, string> = {
+  P1: "필수 — 반드시 검증해야 하는 핵심 기능",
+  P2: "중요 — 핵심 기능, 검증 권장",
+  P3: "일반 — 일반적인 검증 대상",
+  P4: "낮음 — 선택적 검증",
 };
 
 const STATUS_STYLE: Record<string, { bg: string; text: string }> = {
@@ -42,17 +49,6 @@ function formatSteps(text: string): string {
   return text.replace(/\s+(?=\d+[.)]\s)/g, "\n").trim();
 }
 
-/** 생성일 포맷 (MM/DD HH:mm) */
-function formatCreatedAt(iso?: string | null): string {
-  if (!iso) return "-";
-  try {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-  } catch {
-    return "-";
-  }
-}
-
 export default function TCTab({ projectId }: { projectId?: string }) {
   const [batches, setBatches] = useState<TcBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -65,6 +61,9 @@ export default function TCTab({ projectId }: { projectId?: string }) {
   const [editingTitle, setEditingTitle] = useState("");
   const [perspectiveFilter, setPerspectiveFilter] = useState<string>("all");
   const [featureGroupFilter, setFeatureGroupFilter] = useState<string>("all");
+  const [importing, setImporting] = useState(false);
+  const [googleSheetsModal, setGoogleSheetsModal] = useState<{ formula: string; csvUrl: string; isLocalhost: boolean } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchBatches = useCallback(async () => {
     try {
@@ -73,7 +72,7 @@ export default function TCTab({ projectId }: { projectId?: string }) {
       const data = await res.json();
       const list = data.batches ?? [];
       setBatches(list);
-      setSelectedBatchId((prev) => (prev && list.some((b: TcBatch) => b.id === prev)) ? prev : list[0]?.id ?? null);
+      setSelectedBatchId((prev) => (prev && list.some((b: TcBatch) => b.id === prev)) ? prev : null);
     } catch {
       setBatches([]);
     } finally {
@@ -183,6 +182,60 @@ export default function TCTab({ projectId }: { projectId?: string }) {
     }
   };
 
+  const handleViewInGoogleSheets = () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const csvUrl = `${origin}/api/tc/export-csv?projectId=${projectId ?? ""}&batchId=${encodeURIComponent(selectedBatchId ?? "")}`;
+    const formula = `=IMPORTDATA("${csvUrl}")`;
+    const isLocalhost = origin.includes("localhost") || origin.includes("127.0.0.1");
+
+    window.open("https://docs.google.com/spreadsheets/create", "_blank", "noopener,noreferrer");
+    setGoogleSheetsModal({ formula, csvUrl, isLocalhost });
+  };
+
+  const copyFormulaToClipboard = () => {
+    if (googleSheetsModal) {
+      navigator.clipboard.writeText(googleSheetsModal.formula);
+      alert("수식이 복사되었습니다. 구글 시트 A1 셀에 붙여넣으세요.");
+    }
+  };
+
+  const handleXlsxImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleXlsxImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    const targetBatchId = selectedBatchId && selectedBatchId !== "__unbatched__" ? selectedBatchId : null;
+    const batchTitle = targetBatchId ? undefined : `xlsx 가져오기_${new Date().toISOString().slice(0, 10)}`;
+
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (projectId) formData.append("projectId", projectId);
+      if (targetBatchId) formData.append("batchId", targetBatchId);
+      else if (batchTitle) formData.append("batchTitle", batchTitle);
+
+      const res = await fetch("/api/tc/import", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "가져오기 실패");
+
+      fetchBatches();
+      if (targetBatchId) {
+        fetchTcs();
+      } else if (data.batchId) {
+        setSelectedBatchId(data.batchId);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "가져오기 실패");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const selectedBatch = batches.find((b) => b.id === selectedBatchId);
 
   const uniqueFeatureGroups = Array.from(
@@ -222,140 +275,204 @@ export default function TCTab({ projectId }: { projectId?: string }) {
           아직 생성된 TC가 없어요
         </p>
         <p className="text-base mb-4" style={{ color: "var(--text-secondary)" }}>
-          스펙 변환 탭에서 기획서를 업로드하고 TC를 생성하세요
+          스펙 변환 탭에서 기획서를 업로드하고 TC를 생성하거나, xlsx를 가져오세요
         </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={handleXlsxImportFile}
+        />
+        <button
+          type="button"
+          onClick={handleXlsxImportClick}
+          disabled={importing}
+          className="btn-secondary inline-flex items-center gap-1.5 disabled:opacity-50"
+        >
+          {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+          xlsx 가져오기
+        </button>
       </div>
     );
   }
 
-  return (
-    <div className="flex gap-6 min-w-0 min-h-0">
-      {/* 1depth: 배치 리스트 */}
-      <aside
-        className="w-56 shrink-0 rounded-lg border overflow-y-auto"
-        style={{
-          borderColor: "var(--border-default)",
-          background: "var(--bg-surface)",
-          maxHeight: "calc(100vh - 280px)",
-        }}
-      >
-        <div className="p-2">
-          <p className="text-xs font-medium px-2 py-1 mb-2" style={{ color: "var(--text-subtle)" }}>
-            TC 생성 배치
+  // 리스트 뷰 (1depth만)
+  if (selectedBatchId === null) {
+    return (
+      <div className="min-w-0 min-h-0">
+        <div
+          className="rounded-lg border p-6 max-w-xl"
+          style={{
+            background: "var(--bg-surface)",
+            borderColor: "var(--border-default)",
+            boxShadow: "0 1px 2px rgba(23,43,77,0.04)",
+          }}
+        >
+          <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+            TC 배치 목록
           </p>
-          {batches.map((batch) => {
-            const isSelected = selectedBatchId === batch.id;
-            const isUnbatched = batch.id === "__unbatched__";
-            const isEditing = editingBatchId === batch.id;
+          <div className="space-y-1 mb-6">
+            {batches.map((batch) => {
+              const isUnbatched = batch.id === "__unbatched__";
+              const isEditing = editingBatchId === batch.id;
 
-            if (isEditing) {
-              return (
-                <div key={batch.id} className="px-2 py-1.5 mb-1">
-                  <input
-                    type="text"
-                    value={editingTitle}
-                    onChange={(e) => setEditingTitle(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleBatchSave();
-                      if (e.key === "Escape") {
-                        setEditingBatchId(null);
-                        setEditingTitle("");
-                      }
-                    }}
-                    autoFocus
-                    className="w-full px-2 py-1 text-sm rounded border"
-                    style={{
-                      background: "var(--bg-surface)",
-                      borderColor: "var(--border-default)",
-                      color: "var(--text-primary)",
-                    }}
-                  />
-                  <div className="flex gap-1 mt-1">
-                    <button
-                      type="button"
-                      onClick={handleBatchSave}
-                      className="text-xs px-2 py-1 rounded"
+              if (isEditing) {
+                return (
+                  <div key={batch.id} className="p-3 rounded-lg border mb-2" style={{ background: "var(--bg-sidebar)", borderColor: "var(--border-default)" }}>
+                    <input
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleBatchSave();
+                        if (e.key === "Escape") {
+                          setEditingBatchId(null);
+                          setEditingTitle("");
+                        }
+                      }}
+                      autoFocus
+                      className="w-full px-3 py-2 text-sm rounded border mb-2"
                       style={{
-                        background: "var(--point-default)",
-                        color: "var(--text-inverse)",
+                        background: "var(--bg-surface)",
+                        borderColor: "var(--border-default)",
+                        color: "var(--text-primary)",
                       }}
-                    >
-                      저장
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingBatchId(null);
-                        setEditingTitle("");
-                      }}
-                      className="text-xs px-2 py-1 rounded btn-ghost"
-                    >
-                      취소
-                    </button>
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={handleBatchSave}
+                        className="text-xs px-2 py-1 rounded"
+                        style={{
+                          background: "var(--point-default)",
+                          color: "var(--text-inverse)",
+                        }}
+                      >
+                        저장
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingBatchId(null);
+                          setEditingTitle("");
+                        }}
+                        className="text-xs px-2 py-1 rounded btn-ghost"
+                      >
+                        취소
+                      </button>
+                    </div>
                   </div>
+                );
+              }
+
+              return (
+                <div
+                  key={batch.id}
+                  className="group flex items-center gap-2 p-3 rounded-lg border cursor-pointer hover:bg-[var(--bg-hover)] transition-colors"
+                  style={{ borderColor: "var(--border-default)" }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBatchId(batch.id)}
+                    className="flex-1 min-w-0 text-left flex items-center gap-3"
+                  >
+                    <ChevronRight size={18} style={{ color: "var(--text-secondary)" }} />
+                    <span className="flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }} title={batch.title}>
+                      {batch.title}
+                    </span>
+                    <span className="text-xs shrink-0" style={{ color: "var(--text-subtle)" }}>
+                      {batch.tc_count ?? 0}개
+                    </span>
+                  </button>
+                  {!isUnbatched && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBatchEdit(batch);
+                        }}
+                        className="p-1.5 rounded hover:bg-[var(--bg-hover)]"
+                        title="제목 수정"
+                      >
+                        <Pencil size={14} style={{ color: "var(--text-secondary)" }} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBatchDelete(batch);
+                        }}
+                        className="p-1.5 rounded hover:bg-[var(--status-fail-bg)]"
+                        title="삭제"
+                      >
+                        <Trash2 size={14} style={{ color: "var(--status-fail-text)" }} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
-            }
-
-            return (
-              <div
-                key={batch.id}
-                className="group flex items-center gap-1 mb-1 rounded-md"
-                style={{
-                  background: isSelected ? "var(--bg-selected)" : "transparent",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedBatchId(batch.id)}
-                  className="flex-1 min-w-0 text-left px-3 py-2 flex items-center gap-2"
-                  style={{
-                    color: isSelected ? "var(--point-default)" : "var(--text-primary)",
-                  }}
-                >
-                  <ChevronRight
-                    size={14}
-                    className={`shrink-0 ${isSelected ? "opacity-100" : "opacity-40"}`}
-                  />
-                  <span className="flex-1 truncate text-sm font-medium">{batch.title}</span>
-                  <span className="text-xs shrink-0" style={{ color: "var(--text-subtle)" }}>
-                    {batch.tc_count ?? 0}개
-                  </span>
-                </button>
-                {!isUnbatched && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 pr-1">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleBatchEdit(batch);
-                      }}
-                      className="p-1 rounded hover:bg-[var(--bg-hover)]"
-                      title="제목 수정"
-                    >
-                      <Pencil size={14} style={{ color: "var(--text-secondary)" }} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleBatchDelete(batch);
-                      }}
-                      className="p-1 rounded hover:bg-[var(--status-fail-bg)]"
-                      title="삭제"
-                    >
-                      <Trash2 size={14} style={{ color: "var(--status-fail-text)" }} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+            })}
+          </div>
+          <div className="pt-4 border-t" style={{ borderColor: "var(--border-subtle)" }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleXlsxImportFile}
+            />
+            <button
+              type="button"
+              onClick={handleXlsxImportClick}
+              disabled={importing}
+              className="btn-secondary w-full inline-flex items-center justify-center gap-2 py-2.5 text-sm disabled:opacity-50"
+            >
+              {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+              xlsx 가져오기
+            </button>
+          </div>
         </div>
-      </aside>
 
-      {/* 2depth: 상세 테이블 */}
-      <div className="flex-1 min-w-0 space-y-6">
+        <IssuePanel
+          tc={issuePanelTc}
+          projectId={projectId}
+          onClose={() => setIssuePanelTc(null)}
+          onRegistered={() => {
+            setIssuePanelTc(null);
+            fetchTcs();
+          }}
+        />
+      </div>
+    );
+  }
+
+  // 상세 뷰 (2depth)
+  return (
+    <div className="min-w-0 min-h-0 flex flex-col">
+      <div
+        className="flex-1 min-w-0 overflow-x-hidden space-y-4 p-4 rounded-lg border"
+        style={{
+          background: "var(--bg-surface)",
+          borderColor: "var(--border-default)",
+          boxShadow: "0 1px 2px rgba(23,43,77,0.04)",
+        }}
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <button
+            type="button"
+            onClick={() => setSelectedBatchId(null)}
+            className="btn-ghost inline-flex items-center gap-1.5 py-1.5 px-2 rounded text-sm"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            <ArrowLeft size={18} />
+            뒤로가기
+          </button>
+          <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            {selectedBatch?.title}
+          </span>
+        </div>
         {tcLoading ? (
           <div className="flex items-center gap-2 py-12" style={{ color: "var(--text-secondary)" }}>
             <Loader2 className="animate-spin" size={24} />
@@ -371,6 +488,9 @@ export default function TCTab({ projectId }: { projectId?: string }) {
           >
             <p style={{ color: "var(--text-secondary)" }}>
               {selectedBatch ? `"${selectedBatch.title}"에 TC가 없습니다.` : "배치를 선택하세요."}
+            </p>
+            <p className="mt-2 text-xs" style={{ color: "var(--text-subtle)" }}>
+              뒤로가기 후 리스트에서 xlsx 가져오기로 추가할 수 있습니다.
             </p>
           </div>
         ) : (
@@ -427,91 +547,95 @@ export default function TCTab({ projectId }: { projectId?: string }) {
                   </select>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => exportTcToXlsx(filteredTestCases)}
-                className="btn-secondary inline-flex items-center gap-1.5 shrink-0"
-              >
-                <Download size={16} />
-                xlsx 다운로드
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleViewInGoogleSheets}
+                  className="btn-secondary inline-flex items-center gap-1.5"
+                  title="xlsx 다운로드 후 구글 시트에서 파일 → 가져오기로 불러오세요"
+                >
+                  <ExternalLink size={16} />
+                  구글시트에서 보기
+                </button>
+                <button
+                  type="button"
+                  onClick={() => exportTcToXlsx(filteredTestCases)}
+                  className="btn-secondary inline-flex items-center gap-1.5"
+                >
+                  <Download size={16} />
+                  xlsx 다운로드
+                </button>
+              </div>
             </div>
 
             <div
-              className="rounded-lg border overflow-hidden"
+              className="rounded-lg border overflow-x-hidden min-w-0"
               style={{ borderColor: "var(--border-default)" }}
             >
-              <table className="w-full min-w-[1240px] table-fixed border-collapse">
+              <table className="w-full table-fixed border-collapse" style={{ minWidth: 0 }}>
                 <colgroup>
-                  <col style={{ width: 90 }} />
-                  <col style={{ width: 56 }} />
-                  <col style={{ width: 64 }} />
-                  <col style={{ width: 56 }} />
-                  <col style={{ width: 64 }} />
-                  <col style={{ width: 160 }} />
-                  <col style={{ width: 100 }} />
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "5%" }} />
+                  <col style={{ width: "4%" }} />
+                  <col style={{ width: "4%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "24%" }} />
                   <col style={{ width: "22%" }} />
-                  <col style={{ width: "22%" }} />
-                  <col style={{ width: 120 }} />
+                  <col style={{ width: "12%" }} />
                 </colgroup>
                 <thead style={{ background: "var(--bg-sidebar)" }}>
                   <tr>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1 px-1 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       TC ID
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1 px-1 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       화면코드
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      생성일
-                    </th>
-                    <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1 px-1 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       관점
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1 px-1 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       우선순위
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1.5 px-2 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       TC 제목
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1.5 px-2 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       사전조건
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1.5 px-2 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       테스트 절차
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1.5 px-2 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       기대결과
                     </th>
                     <th
-                      className="text-left py-1.5 px-1.5 text-xs font-medium whitespace-nowrap overflow-hidden"
+                      className="text-left py-1 px-1 text-xs font-medium whitespace-nowrap overflow-hidden"
                       style={{ color: "var(--text-secondary)" }}
                     >
                       P/F
@@ -535,50 +659,50 @@ export default function TCTab({ projectId }: { projectId?: string }) {
                         }}
                       >
                         <td
-                          className="px-1.5 py-1.5 font-mono text-xs align-top whitespace-nowrap overflow-hidden"
+                          className="px-1 py-1 font-mono text-xs align-top whitespace-nowrap overflow-hidden"
                           style={{ color: "var(--text-link)" }}
                         >
                           {tc.tc_id}
                         </td>
                         <td
-                          className="px-1.5 py-1.5 font-mono text-xs align-top whitespace-nowrap overflow-hidden"
+                          className="px-1 py-1 font-mono text-xs align-top whitespace-nowrap overflow-hidden"
                           style={{ color: "var(--text-secondary)" }}
                         >
                           {tc.screen_code || "-"}
                         </td>
-                        <td
-                          className="px-1.5 py-1.5 text-xs align-top whitespace-nowrap overflow-hidden"
-                          style={{ color: "var(--text-subtle)" }}
-                          title={tc.created_at}
-                        >
-                          {formatCreatedAt(tc.created_at)}
-                        </td>
-                        <td className="px-1.5 py-1.5 align-top overflow-hidden">
+                        <td className="px-1 py-1 align-top overflow-hidden">
                           <span
-                            className="inline-block px-1.5 py-0.5 rounded text-xs font-medium whitespace-nowrap max-w-full truncate"
-                            style={{ background: persStyle.bg, color: persStyle.text }}
+                            className="inline-block px-1 py-0.5 rounded text-xs font-medium whitespace-nowrap max-w-full truncate"
+                            style={{
+                              color: "var(--text-secondary)",
+                              border: "1px solid var(--border-default)",
+                            }}
                           >
                             {PERSPECTIVE_LABEL[tc.test_perspective] ?? tc.test_perspective}
                           </span>
                         </td>
-                        <td className="px-1.5 py-1.5 align-top overflow-hidden">
+                        <td className="px-1 py-1 align-top overflow-hidden">
                           <span
-                            className="inline-block px-1.5 py-0.5 rounded-full text-xs font-semibold"
-                            style={{ background: prioStyle.bg, color: prioStyle.text }}
+                            className="inline-block px-1 py-0.5 rounded text-xs font-medium cursor-help"
+                            style={{
+                              background: "var(--bg-hover)",
+                              color: "var(--text-secondary)",
+                            }}
+                            title={PRIORITY_TOOLTIP[tc.priority] ?? tc.priority}
                           >
                             {tc.priority}
                           </span>
                         </td>
                         <td
-                          className="px-1.5 py-1.5 text-sm align-top overflow-hidden"
-                          style={{ color: "var(--text-primary)" }}
+                          className="px-2 py-1.5 text-xs align-top overflow-hidden"
+                          style={{ color: "var(--text-secondary)" }}
                         >
                           <span className="block break-words" style={{ wordBreak: "break-word" }}>
                             {tc.title}
                           </span>
                         </td>
                         <td
-                          className="px-1.5 py-1.5 text-xs align-top overflow-hidden"
+                          className="px-2 py-1.5 text-xs align-top overflow-hidden"
                           style={{ color: "var(--text-secondary)" }}
                         >
                           <span className="line-clamp-2 block break-words" title={tc.preconditions} style={{ wordBreak: "break-word" }}>
@@ -586,64 +710,62 @@ export default function TCTab({ projectId }: { projectId?: string }) {
                           </span>
                         </td>
                         <td
-                          className="px-2 py-1.5 text-sm align-top overflow-hidden"
-                          style={{ color: "var(--text-secondary)" }}
+                          className="px-2 py-1.5 text-xs font-medium align-top overflow-hidden"
+                          style={{ color: "var(--text-primary)" }}
                         >
-                          <span className="whitespace-pre-line block break-words" style={{ lineHeight: 1.6, wordBreak: "break-word" }}>
+                          <span className="whitespace-pre-line block break-words" style={{ lineHeight: 1.4, wordBreak: "break-word" }}>
                             {formatSteps(tc.steps ?? "")}
                           </span>
                         </td>
                         <td
-                          className="px-2 py-1.5 text-sm align-top overflow-hidden"
+                          className="px-2 py-1.5 text-xs align-top overflow-hidden"
                           style={{ color: "var(--text-secondary)" }}
                         >
-                          <span className="whitespace-pre-line block break-words" style={{ lineHeight: 1.6, wordBreak: "break-word" }}>
+                          <span className="whitespace-pre-line block break-words" style={{ lineHeight: 1.4, wordBreak: "break-word" }}>
                             {formatSteps(tc.expected_result ?? "")}
                           </span>
                         </td>
-                        <td className="px-1.5 py-1.5 align-top overflow-hidden min-w-0">
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <div className="flex items-center gap-1 min-w-0">
-                              <select
-                                value={tc.status}
-                                onChange={(e) => handleStatusChange(tc, e.target.value)}
-                                className="text-xs font-medium rounded-full px-2 py-1 border-0 cursor-pointer focus:ring-2 focus:ring-offset-1 shrink-0"
-                                style={{
-                                  background: statusStyle.bg,
-                                  color: statusStyle.text,
-                                  minWidth: 72,
-                                }}
+                        <td className="px-1 py-1 align-top overflow-hidden min-w-0">
+                          <div className="flex items-center gap-1 flex-nowrap">
+                            <select
+                              value={tc.status}
+                              onChange={(e) => handleStatusChange(tc, e.target.value)}
+                              className="text-xs font-medium rounded-[4px] px-1.5 py-0.5 border-0 cursor-pointer focus:ring-2 focus:ring-offset-1 shrink-0"
+                              style={{
+                                background: statusStyle.bg,
+                                color: statusStyle.text,
+                                minWidth: 52,
+                              }}
+                            >
+                              {STATUS_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                            {isFail && (
+                              <button
+                                type="button"
+                                onClick={() => setIssuePanelTc({ ...tc, status: "FAIL" })}
+                                className={`p-0.5 rounded text-xs inline-flex items-center gap-0.5 shrink-0 whitespace-nowrap ${
+                                  !registeredTcIds.has(tc.tc_id) ? "btn-ghost" : ""
+                                }`}
+                                title={registeredTcIds.has(tc.tc_id) ? "이슈 등록됨 (클릭하여 수정)" : "이슈 등록"}
+                                style={
+                                  registeredTcIds.has(tc.tc_id)
+                                    ? {
+                                        background: "var(--status-pass-badge)",
+                                        color: "var(--status-pass-text)",
+                                      }
+                                    : undefined
+                                }
                               >
-                                {STATUS_OPTIONS.map((opt) => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                              </select>
-                              {isFail && (
-                                <button
-                                  type="button"
-                                  onClick={() => setIssuePanelTc({ ...tc, status: "FAIL" })}
-                                  className={`p-1 rounded text-xs inline-flex items-center gap-0.5 shrink-0 ${
-                                    !registeredTcIds.has(tc.tc_id) ? "btn-ghost" : ""
-                                  }`}
-                                  title={registeredTcIds.has(tc.tc_id) ? "이슈 등록됨 (클릭하여 수정)" : "이슈 등록"}
-                                  style={
-                                    registeredTcIds.has(tc.tc_id)
-                                      ? {
-                                          background: "var(--status-pass-badge)",
-                                          color: "var(--status-pass-text)",
-                                        }
-                                      : undefined
-                                  }
-                                >
-                                  <FileText size={14} />
-                                  <span className="text-xs">
-                                    {registeredTcIds.has(tc.tc_id) ? "이슈 ✓" : "이슈"}
-                                  </span>
-                                </button>
-                              )}
-                            </div>
+                                <FileText size={12} />
+                                <span className="text-xs">
+                                  {registeredTcIds.has(tc.tc_id) ? "이슈 ✓" : "이슈"}
+                                </span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -655,6 +777,79 @@ export default function TCTab({ projectId }: { projectId?: string }) {
           </>
         )}
       </div>
+
+      {googleSheetsModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "var(--bg-overlay)" }}
+          onClick={() => setGoogleSheetsModal(null)}
+        >
+          <div
+            className="rounded-lg border p-6 max-w-md w-full shadow-lg"
+            style={{
+              background: "var(--bg-surface)",
+              borderColor: "var(--border-default)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-3" style={{ color: "var(--text-primary)" }}>
+              구글 시트에 데이터 불러오기
+            </h3>
+            {googleSheetsModal.isLocalhost ? (
+              <div className="space-y-4">
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  IMPORTDATA는 배포된 환경에서만 동작합니다. xlsx를 다운로드한 뒤 구글 시트에서{" "}
+                  <strong>파일 → 가져오기 → 업로드</strong>로 불러오세요.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    exportTcToXlsx(filteredTestCases);
+                    setGoogleSheetsModal(null);
+                  }}
+                  className="btn-primary w-full py-2 text-sm inline-flex items-center justify-center gap-2"
+                >
+                  <Download size={16} />
+                  xlsx 다운로드
+                </button>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>
+                  새 탭에서 열린 구글 시트의 <strong>A1 셀</strong>에 아래 수식을 붙여넣으세요.
+                </p>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    readOnly
+                    value={googleSheetsModal.formula}
+                    className="flex-1 text-xs px-3 py-2 rounded border font-mono"
+                    style={{
+                      background: "var(--bg-sidebar)",
+                      borderColor: "var(--border-default)",
+                      color: "var(--text-primary)",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={copyFormulaToClipboard}
+                    className="btn-primary shrink-0 px-3 py-2 text-sm"
+                  >
+                    복사
+                  </button>
+                </div>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={() => setGoogleSheetsModal(null)}
+              className="btn-secondary w-full py-2 text-sm"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
 
       <IssuePanel
         tc={issuePanelTc}

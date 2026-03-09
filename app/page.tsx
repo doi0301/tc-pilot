@@ -41,9 +41,16 @@ export default function Home() {
 
   return (
     <main className="flex-1 flex flex-col min-h-0" style={{ background: "var(--bg-page)" }}>
-      {/* 상단 고정 영역: 가로 스크롤 시에도 상단에 유지 */}
-      <div className="shrink-0 p-6 pb-0" style={{ background: "var(--bg-page)" }}>
-        <header className="mb-6">
+      {/* 1. 상단 정보 영역 (TC Pilot 타이틀) */}
+      <div
+        className="shrink-0 p-6 pb-4 border-b"
+        style={{
+          background: "var(--bg-surface)",
+          borderColor: "var(--border-bold)",
+          boxShadow: "0 1px 0 0 var(--border-subtle)",
+        }}
+      >
+        <header className="mb-4">
           <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
             TC Pilot
           </h1>
@@ -83,9 +90,13 @@ export default function Home() {
           </div>
         </header>
 
+        {/* 2. 스펙 변환 탭 메뉴 */}
         <nav
-          className="flex gap-0 mb-6 border-b"
-          style={{ borderColor: "var(--border-default)", background: "var(--bg-page)" }}
+          className="flex gap-0 border-b-2 -mb-px"
+          style={{
+            borderColor: "var(--border-default)",
+            background: "transparent",
+          }}
         >
           {[
             { id: "spec" as Tab, label: "스펙 변환" },
@@ -113,8 +124,8 @@ export default function Home() {
         </nav>
       </div>
 
-      {/* 콘텐츠 영역: 가로 스크롤 발생 시 이 영역만 스크롤 */}
-      <section className="flex-1 min-h-0 overflow-x-auto overflow-y-auto p-6 pt-4">
+      {/* 3. 오른쪽 콘텐츠 영역 */}
+      <section className="flex-1 min-h-0 overflow-x-auto overflow-y-auto p-6 pt-4" style={{ background: "var(--bg-page)" }}>
         {activeTab === "spec" && (
           <SpecTab
             projectId={projectId}

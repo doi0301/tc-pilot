@@ -117,7 +117,14 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
   });
 
   return (
-    <div className="space-y-6">
+    <div
+      className="space-y-6 p-4 rounded-lg border"
+      style={{
+        background: "var(--bg-surface)",
+        borderColor: "var(--border-default)",
+        boxShadow: "0 1px 2px rgba(23,43,77,0.04)",
+      }}
+    >
       {/* 파싱만 테스트 체크박스 */}
       <label className="flex items-center gap-2 cursor-pointer">
         <input
