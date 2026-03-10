@@ -8,9 +8,9 @@ import { supabase } from "@/lib/supabase";
 import { parseTcXlsx } from "@/lib/xlsx-import";
 import type { TestCase } from "@/types";
 
-async function getDefaultProjectId(): Promise<string | undefined> {
+async function getDefaultProjectId(): Promise<string | null> {
   const { data } = await supabase.from("projects").select("id").limit(1);
-  return data?.[0]?.id;
+  return data?.[0]?.id ?? null;
 }
 
 export async function POST(request: NextRequest) {
@@ -25,9 +25,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "xlsx 파일을 선택해주세요." }, { status: 400 });
     }
 
-    if (!projectId) projectId = await getDefaultProjectId();
     if (!projectId) {
-      return NextResponse.json({ error: "프로젝트를 찾을 수 없습니다." }, { status: 400 });
+      const defaultProjectId = await getDefaultProjectId();
+      if (!defaultProjectId) {
+        return NextResponse.json({ error: "프로젝트를 찾을 수 없습니다." }, { status: 400 });
+      }
+      projectId = defaultProjectId;
     }
 
     const buffer = await file.arrayBuffer();
