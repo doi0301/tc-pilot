@@ -21,14 +21,29 @@ export async function createClaudeMessage(
     );
   }
 
-  const response = await anthropic.messages.create({
-    model: options?.model ?? "claude-sonnet-4-20250514",
-    max_tokens: options?.maxTokens ?? 8192,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userContent }],
-  });
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: options?.model ?? "claude-sonnet-4-20250514",
+      max_tokens: options?.maxTokens ?? 8192,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }],
+    });
+  } catch (err) {
+    const anyErr = err as any;
+    const status = anyErr?.status ?? anyErr?.response?.status;
+    const type = anyErr?.error?.type;
 
-  const textBlock = response.content.find((block) => block.type === "text");
+    if (status === 429 || type === "rate_limit_error") {
+      throw new Error(
+        "현재 AI 사용량이 많아 요청이 제한되었습니다. 잠시 후 다시 시도하거나, 문서 분량을 줄여서 다시 시도해 주세요."
+      );
+    }
+
+    throw err;
+  }
+
+  const textBlock = response.content.find((block: any) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") {
     throw new Error("No text in Claude response.");
   }

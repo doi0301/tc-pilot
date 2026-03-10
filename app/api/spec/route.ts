@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { parseFile, isAllowedFile } from "@/lib/parsers";
+import { parseFile, isAllowedFile, getFileType } from "@/lib/parsers";
 import { createClaudeMessage } from "@/lib/claude";
 import {
   SPEC_CONVERSION_SYSTEM_PROMPT,
@@ -17,6 +17,70 @@ import type { Spec } from "@/types";
 async function getDefaultProjectId(): Promise<string | undefined> {
   const { data } = await supabase.from("projects").select("id").limit(1);
   return data?.[0]?.id;
+}
+
+function splitPptSlides(raw: string): string[] {
+  return raw
+    .split(/\n\s*--- 슬라이드 구분 ---\s*\n/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function buildPptPreview(slides: string[]): string {
+  if (slides.length === 0) return "";
+  return slides
+    .map((slide, idx) => {
+      return `[#${idx + 1} 슬라이드]\n${slide}`;
+    })
+    .join("\n\n------------------------------\n\n");
+}
+
+async function generateSpecsFromPptChunks(
+  content: string,
+  originalText: string
+): Promise<Spec[]> {
+  const slides = splitPptSlides(content);
+  if (slides.length === 0) {
+    // fallback: 기존 방식 유지
+    const userPrompt = SPEC_CONVERSION_USER_PROMPT_PREFIX + originalText;
+    const rawResponse = await createClaudeMessage(
+      SPEC_CONVERSION_SYSTEM_PROMPT,
+      userPrompt,
+      { maxTokens: 4096 }
+    );
+    return extractJsonArray<Spec>(rawResponse);
+  }
+
+  const MAX_SLIDES_PER_CHUNK = 12;
+  const allSpecs: Spec[] = [];
+
+  for (let i = 0; i < slides.length; i += MAX_SLIDES_PER_CHUNK) {
+    const chunkSlides = slides.slice(i, i + MAX_SLIDES_PER_CHUNK);
+    const chunkRangeStart = i + 1;
+    const chunkRangeEnd = i + chunkSlides.length;
+    const chunkText = chunkSlides.join(
+      "\n\n--- 슬라이드 구분 ---\n\n"
+    );
+
+    const userPrompt =
+      SPEC_CONVERSION_USER_PROMPT_PREFIX +
+      `다음 내용은 PPT 기획서의 슬라이드 #${chunkRangeStart}~#${chunkRangeEnd}에 해당합니다.\n` +
+      `각 슬라이드에서 화면/기능 스펙으로 볼 수 있는 부분만 골라 JSON 스펙 배열로 변환해주세요.\n\n` +
+      chunkText;
+
+    const rawResponse = await createClaudeMessage(
+      SPEC_CONVERSION_SYSTEM_PROMPT,
+      userPrompt,
+      { maxTokens: 4096 }
+    );
+
+    const chunkSpecs = extractJsonArray<Spec>(rawResponse);
+    if (Array.isArray(chunkSpecs) && chunkSpecs.length > 0) {
+      allSpecs.push(...chunkSpecs);
+    }
+  }
+
+  return allSpecs;
 }
 
 export async function POST(request: NextRequest) {
@@ -52,8 +116,18 @@ export async function POST(request: NextRequest) {
     }
 
     const parseOnly = formData.get("parseOnly") === "true";
+    const fileType = getFileType(file.name);
 
     if (parseOnly) {
+      if (fileType === "ppt") {
+        const slides = splitPptSlides(content);
+        return NextResponse.json({
+          parsedText: buildPptPreview(slides),
+          specs: [],
+          parseOnly: true,
+        });
+      }
+
       return NextResponse.json({
         parsedText: content,
         specs: [],
@@ -61,23 +135,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const userPrompt = SPEC_CONVERSION_USER_PROMPT_PREFIX + content;
-    const rawResponse = await createClaudeMessage(
-      SPEC_CONVERSION_SYSTEM_PROMPT,
-      userPrompt,
-      { maxTokens: 4096 }
-    );
-
-    let specs: Spec[];
+    let specs: Spec[] = [];
     try {
-      specs = extractJsonArray<Spec>(rawResponse);
+      if (fileType === "ppt") {
+        specs = await generateSpecsFromPptChunks(content, content);
+      } else {
+        const userPrompt = SPEC_CONVERSION_USER_PROMPT_PREFIX + content;
+        const rawResponse = await createClaudeMessage(
+          SPEC_CONVERSION_SYSTEM_PROMPT,
+          userPrompt,
+          { maxTokens: 4096 }
+        );
+        specs = extractJsonArray<Spec>(rawResponse);
+      }
     } catch (parseErr) {
       console.error("Spec JSON parse error:", parseErr);
-      const msg = parseErr instanceof Error ? parseErr.message : "AI 응답 파싱 실패";
-      return NextResponse.json(
-        { error: msg },
-        { status: 500 }
-      );
+      const msg =
+        parseErr instanceof Error ? parseErr.message : "AI 응답 파싱 실패";
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
 
     if (specs.length === 0) {

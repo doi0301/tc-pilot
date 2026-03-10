@@ -41,6 +41,18 @@ export function extractJsonArray<T = unknown>(text: string): T[] {
     }
   }
 
+  // 디버깅을 위해 응답 앞부분 일부를 로그로 남김
+  try {
+    const preview = text.slice(0, 400);
+    // eslint-disable-next-line no-console
+    console.error(
+      "extractJsonArray 실패. 응답 앞부분 미리보기:",
+      preview
+    );
+  } catch {
+    // ignore logging errors
+  }
+
   throw new Error(
     "AI 응답에서 JSON 배열을 추출할 수 없습니다. 다시 시도해주세요."
   );

@@ -9,30 +9,32 @@ export const SPEC_CONVERSION_SYSTEM_PROMPT = `당신은 기획서를 표준 스�
 사용자가 기획서 파일(MD, XLSX, PPT 등)의 내용을 텍스트 또는 JSON 형태로 제공합니다.
 
 ## 출력
-반드시 아래 형식의 JSON 배열만 출력하세요. 다른 설명이나 마크다운 없이 순수 JSON만 출력합니다.
+반드시 아래 필드를 가진 JSON 배열만 출력하세요. 설명 문장, 마크다운 코드블록(\`\`\`) 등 JSON 이외의 내용은 절대 출력하지 마세요.
 
-\`\`\`json
-[
-  {
-    "screen_code": "LGN01",
-    "screen_name": "로그인 화면",
-    "path": "/login",
-    "screen_type": "페이지",
-    "roles": "비로그인 사용자",
-    "conditions": "없음",
-    "format": "이메일/비밀번호 입력 폼",
-    "interactions": "이메일 입력, 비밀번호 입력, 로그인 버튼 클릭",
-    "notes": "추가 메모"
-  }
-]
-\`\`\`
+- 배열 타입: Spec[]
+- 각 원소 필드:
+  - screen_code: string (예: "LGN01", "CS001")
+  - screen_name: string
+  - path: string
+  - screen_type: string
+  - roles: string
+  - conditions: string
+  - format: string
+  - interactions: string
+  - notes: string
 
 ## 규칙
 1. screen_code: 3~5자 영문+숫자 (예: LGN01, CS001, EX001, MYP02)
 2. 각 화면/기능 단위로 하나의 스펙 객체 생성
 3. 입력에 화면 정보가 없으면 합리적으로 추론하여 채움
-4. 빈 배열 []이면 "화면 스펙을 찾을 수 없습니다" 등 짧은 설명만 JSON 배열 앞에 한 줄로 추가 가능
-5. 반드시 유효한 JSON 배열로 끝나야 함`;
+4. 빈 결과인 경우에도 \`[]\` 형태의 JSON 배열만 출력 (설명 문장 금지)
+5. 반드시 파싱 가능한 유효한 JSON 배열로만 응답해야 하며, 앞뒤에 어떠한 텍스트도 붙이지 않습니다.
+
+## PPT / 슬라이드 기반 입력에 대한 추가 규칙
+1. 입력이 "슬라이드 구분" 등의 텍스트로 여러 슬라이드가 이어진 경우, 각 슬라이드를 훑으면서 화면/기능 스펙으로 볼 수 있는 부분만 골라 Spec 객체를 만듭니다.
+2. 회사 소개, 배경 설명, 프로젝트 개요 등은 스펙으로 만들지 않습니다.
+3. 화면 설계, 업무 플로우, 입력/출력 항목이 정리된 표, 버튼/필드 목록 등만 스펙 후보로 간주합니다.
+4. 슬라이드 번호나 제목은 결과 JSON에 포함하지 않습니다.`;
 
 export const SPEC_CONVERSION_USER_PROMPT_PREFIX = `다음 기획서 내용을 표준 스펙 JSON 배열로 변환해주세요. 순수 JSON 배열만 출력하세요.\n\n`;
 

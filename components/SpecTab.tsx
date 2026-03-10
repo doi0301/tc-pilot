@@ -183,6 +183,9 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
             <p className="text-sm mt-1" style={{ color: "var(--text-subtle)" }}>
               또는 클릭하여 파일 선택
             </p>
+              <p className="text-xs mt-3" style={{ color: "var(--text-subtle)" }}>
+                한 번에 너무 많은 슬라이드를 올리면 AI 품질이 떨어질 수 있어요. 큰 PPT는 챕터/섹션 단위로 나누어 업로드하는 것을 추천합니다.
+              </p>
           </div>
         );
       })()}
