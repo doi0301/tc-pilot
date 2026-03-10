@@ -277,18 +277,18 @@ export default function TCTab({ projectId }: { projectId?: string }) {
 
   if (batches.length === 0) {
     return (
-          <div
+      <div
         className="py-16 text-center rounded-lg border"
         style={{
           background: "var(--bg-surface)",
           borderColor: "var(--border-default)",
         }}
-        >
+      >
         <p className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
-          아직 만들어진 테스트가 없어요
+          아직 만들어진 테스트케이스가 없어요.
         </p>
         <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
-          위쪽의 기획서 정리 탭에서 문서를 올려 테스트를 만들거나, 엑셀 파일을 가져와 주세요.
+          위쪽의 업로드 탭에서 문서를 올려 테스트케이스를 만들거나, 엑셀 파일을 가져와 주세요.
         </p>
         <input
           ref={fileInputRef}

@@ -123,8 +123,7 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
     onDrop,
     accept: ACCEPT,
     maxFiles: 1,
-    // 관리자만 실제 업로드 동작 허용
-    disabled: loading || !isAdmin,
+    disabled: loading,
   });
 
   return (
@@ -150,36 +149,43 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
       </label>
 
       {/* T-005: File Upload Area — Design System §5-10 */}
-      <div
-        {...(isAdmin ? getRootProps() : {})}
-        className="border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-[border-color,background-color] duration-150"
-        style={{
-          borderColor: isAdmin && isDragActive ? "var(--point-default)" : "var(--border-bold)",
-          background: isAdmin && isDragActive ? "var(--point-subtle)" : "var(--bg-page)",
-          color: isAdmin && isDragActive ? "var(--point-default)" : "var(--text-secondary)",
-        }}
-        onClick={(e) => {
-          if (!isAdmin) {
-            e.preventDefault();
-            e.stopPropagation();
-            setShowLoginRequired(true);
-          }
-        }}
-      >
-        {isAdmin && <input {...getInputProps()} />}
-        <Upload
-          className="mx-auto mb-3"
-          size={32}
-          strokeWidth={1.5}
-          style={{ color: isDragActive ? "var(--point-default)" : "var(--text-subtle)" }}
-        />
-        <p className="text-sm font-medium">
-          PPT, MD, XLSX 파일을 드래그앤드롭 하세요
-        </p>
-        <p className="text-sm mt-1" style={{ color: "var(--text-subtle)" }}>
-          또는 클릭하여 파일 선택
-        </p>
-      </div>
+      {(() => {
+        const rootProps = getRootProps();
+        return (
+          <div
+            {...rootProps}
+            className="border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-[border-color,background-color] duration-150"
+            style={{
+              borderColor: isDragActive ? "var(--point-default)" : "var(--border-bold)",
+              background: isDragActive ? "var(--point-subtle)" : "var(--bg-page)",
+              color: isDragActive ? "var(--point-default)" : "var(--text-secondary)",
+            }}
+            onClick={(e) => {
+              if (!isAdmin) {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowLoginRequired(true);
+                return;
+              }
+              rootProps.onClick?.(e);
+            }}
+          >
+            <input {...getInputProps()} />
+            <Upload
+              className="mx-auto mb-3"
+              size={32}
+              strokeWidth={1.5}
+              style={{ color: isDragActive ? "var(--point-default)" : "var(--text-subtle)" }}
+            />
+            <p className="text-sm font-medium">
+              PPT, MD, XLSX 파일을 드래그앤드롭 하세요
+            </p>
+            <p className="text-sm mt-1" style={{ color: "var(--text-subtle)" }}>
+              또는 클릭하여 파일 선택
+            </p>
+          </div>
+        );
+      })()}
 
       {loading && (
         <div className="flex items-center gap-2 text-[var(--text-secondary)]">
