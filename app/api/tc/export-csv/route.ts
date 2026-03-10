@@ -7,20 +7,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { testCasesToCsv } from "@/lib/csv-export";
 
-async function getDefaultProjectId(): Promise<string | undefined> {
+async function getDefaultProjectId(): Promise<string | null> {
   const { data } = await supabase.from("projects").select("id").limit(1);
-  return data?.[0]?.id;
+  return data?.[0]?.id ?? null;
 }
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    let projectId = searchParams.get("projectId");
+    let projectId: string | null = searchParams.get("projectId");
     const batchId = searchParams.get("batchId");
 
-    if (!projectId) projectId = await getDefaultProjectId();
     if (!projectId) {
-      return new NextResponse("프로젝트를 찾을 수 없습니다.", { status: 400 });
+      const defaultProjectId = await getDefaultProjectId();
+      if (!defaultProjectId) {
+        return new NextResponse("프로젝트를 찾을 수 없습니다.", { status: 400 });
+      }
+      projectId = defaultProjectId;
     }
 
     let query = supabase
