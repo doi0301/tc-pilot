@@ -71,10 +71,10 @@ export default function IssueLogTab({ projectId }: { projectId?: string }) {
           boxShadow: "0 1px 2px rgba(23,43,77,0.04)",
         }}
       >
-        <p className="text-lg font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+        <p className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
           등록된 이슈가 없어요
         </p>
-        <p className="text-base" style={{ color: "var(--text-secondary)" }}>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           TC 목록에서 FAIL 선택 후 이슈를 등록하면 여기에 표시됩니다
         </p>
       </div>

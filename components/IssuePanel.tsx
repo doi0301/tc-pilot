@@ -68,12 +68,12 @@ export default function IssuePanel({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "AI 보강 실패");
+      if (!res.ok) throw new Error(data.error || "AI 정리에 실패했어요.");
 
       setReproductionSteps(data.reproductionSteps ?? reproductionSteps);
       setActual(data.actual ?? actual);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "AI 보강 실패");
+      setError(e instanceof Error ? e.message : "AI가 내용을 정리하는 데 실패했어요. 직접 수정해 주세요.");
     } finally {
       setEnhanceLoading(false);
     }
@@ -109,10 +109,10 @@ export default function IssuePanel({
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Notion 등록 실패");
+      if (!res.ok) throw new Error(data.error || "Notion에 저장하지 못했어요.");
       onRegistered();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "등록 실패");
+      setError(e instanceof Error ? e.message : "이슈를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
       setNotionFailed(true);
     } finally {
       setLoading(false);
@@ -221,7 +221,7 @@ export default function IssuePanel({
 
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-              재현순서
+              어떤 순서로 했을 때 발생했나요?
             </label>
             <textarea
               value={reproductionSteps}
@@ -238,7 +238,7 @@ export default function IssuePanel({
 
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-              기대결과
+              기대했던 결과
             </label>
             <textarea
               value={expected}
@@ -255,7 +255,7 @@ export default function IssuePanel({
 
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-              실제결과 <span className="text-red-500">*</span>
+              실제로 어떤 일이 있었나요? <span className="text-red-500">*</span>
             </label>
             <textarea
               value={actual}
@@ -413,10 +413,10 @@ export default function IssuePanel({
             {enhanceLoading ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                AI가 이슈 내용을 정리하고 있어요...
+                AI가 내용을 다듬고 있어요...
               </>
             ) : (
-              "AI 보강"
+              "AI로 문장 다듬기"
             )}
           </button>
           <button

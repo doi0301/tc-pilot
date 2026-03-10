@@ -58,7 +58,7 @@ export default function DashboardCards({ testCases }: { testCases: TestCase[] })
           <span
             className={`relative inline-flex items-baseline gap-1.5 group ${item.tcIds ? "cursor-default" : ""}`}
           >
-            <span className="text-base font-semibold" style={item.style}>
+            <span className="text-sm font-semibold" style={item.style}>
               {item.value}
             </span>
             <span className="text-xs" style={{ color: "var(--text-secondary)" }}>

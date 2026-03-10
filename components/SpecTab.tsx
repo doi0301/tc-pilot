@@ -4,6 +4,9 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Upload, Loader2, Wand2 } from "lucide-react";
 import { EditableTable } from "./EditableTable";
+import { LoginRequiredModal } from "./LoginRequiredModal";
+import { AdminLoginModal } from "./AdminLoginModal";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import type { Spec } from "@/types";
 
 export interface SpecTabProps {
@@ -30,8 +33,15 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
   const [error, setError] = useState<string | null>(null);
   const [projectId, setProjectId] = useState<string | undefined>(initialProjectId);
   const [batchTitle, setBatchTitle] = useState("");
+  const { isAdmin } = useAdminAuth();
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     const file = acceptedFiles[0];
     if (!file) return;
 
@@ -73,7 +83,7 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
     } finally {
       setLoading(false);
     }
-  }, [parseOnly, onProjectId]);
+  }, [isAdmin, parseOnly, onProjectId]);
 
   const handleCreateTc = useCallback(async () => {
     const pid = projectId ?? initialProjectId;
@@ -113,7 +123,8 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
     onDrop,
     accept: ACCEPT,
     maxFiles: 1,
-    disabled: loading,
+    // 관리자만 실제 업로드 동작 허용
+    disabled: loading || !isAdmin,
   });
 
   return (
@@ -125,7 +136,7 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
         boxShadow: "0 1px 2px rgba(23,43,77,0.04)",
       }}
     >
-      {/* 파싱만 테스트 체크박스 */}
+      {/* 파일만 먼저 확인하기 옵션 */}
       <label className="flex items-center gap-2 cursor-pointer">
         <input
           type="checkbox"
@@ -134,28 +145,35 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
           className="rounded"
         />
         <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          파싱만 테스트 (AI 사용 안 함, 크레딧 소모 없음)
+          파일 내용만 먼저 보기 (AI 사용 안 함)
         </span>
       </label>
 
       {/* T-005: File Upload Area — Design System §5-10 */}
       <div
-        {...getRootProps()}
+        {...(isAdmin ? getRootProps() : {})}
         className="border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-[border-color,background-color] duration-150"
         style={{
-          borderColor: isDragActive ? "var(--point-default)" : "var(--border-bold)",
-          background: isDragActive ? "var(--point-subtle)" : "var(--bg-page)",
-          color: isDragActive ? "var(--point-default)" : "var(--text-secondary)",
+          borderColor: isAdmin && isDragActive ? "var(--point-default)" : "var(--border-bold)",
+          background: isAdmin && isDragActive ? "var(--point-subtle)" : "var(--bg-page)",
+          color: isAdmin && isDragActive ? "var(--point-default)" : "var(--text-secondary)",
+        }}
+        onClick={(e) => {
+          if (!isAdmin) {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowLoginRequired(true);
+          }
         }}
       >
-        <input {...getInputProps()} />
+        {isAdmin && <input {...getInputProps()} />}
         <Upload
           className="mx-auto mb-3"
           size={32}
           strokeWidth={1.5}
           style={{ color: isDragActive ? "var(--point-default)" : "var(--text-subtle)" }}
         />
-        <p className="text-base font-medium">
+        <p className="text-sm font-medium">
           PPT, MD, XLSX 파일을 드래그앤드롭 하세요
         </p>
         <p className="text-sm mt-1" style={{ color: "var(--text-subtle)" }}>
@@ -166,7 +184,7 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
       {loading && (
         <div className="flex items-center gap-2 text-[var(--text-secondary)]">
           <Loader2 className="animate-spin" size={20} />
-          <span>스펙 변환 중...</span>
+          <span>문서를 정리하는 중입니다...</span>
         </div>
       )}
 
@@ -179,7 +197,7 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
         </div>
       )}
 
-      {/* 파싱만 테스트 결과 미리보기 + 스펙 변환 버튼 */}
+      {/* 파일 내용 미리보기 + AI 정리 버튼 */}
       {parsedText !== null && parsedText !== "" && !loading && (
         <div
           className="rounded-lg border p-4"
@@ -189,7 +207,7 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
           }}
         >
           <p className="text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
-            파싱된 텍스트 (AI 변환 없음)
+            파일에서 추출한 원본 내용 (AI 정리 전)
           </p>
           <pre
             className="text-sm overflow-auto max-h-60 p-3 rounded mb-4"
@@ -205,6 +223,10 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
           {lastFile && (
             <button
               onClick={async () => {
+                if (!isAdmin) {
+                  setShowLoginRequired(true);
+                  return;
+                }
                 setError(null);
                 setLoading(true);
                 try {
@@ -230,7 +252,7 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
               className="btn-primary inline-flex items-center gap-2"
             >
               <Wand2 size={18} />
-              스펙 변환 후 TC 생성하기
+              이 내용으로 테스트 케이스 만들기
             </button>
           )}
         </div>
@@ -263,13 +285,13 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
           <div className="p-4 border-t space-y-3" style={{ borderColor: "var(--border-default)", background: "var(--bg-surface)" }}>
             <div>
               <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
-                이번 TC 생성 배치 제목
+                이번 작업 이름
               </label>
               <input
                 type="text"
                 value={batchTitle}
                 onChange={(e) => setBatchTitle(e.target.value)}
-                placeholder="예: VOC 1차, HIPAS 스케줄러"
+                placeholder="예: 1차 VOC 점검, 스케줄러 테스트"
                 className="w-full max-w-md px-3 py-2 rounded-md border text-sm"
                 style={{
                   background: "var(--bg-surface)",
@@ -279,7 +301,13 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
               />
             </div>
             <button
-              onClick={handleCreateTc}
+              onClick={() => {
+                if (!isAdmin) {
+                  setShowLoginRequired(true);
+                  return;
+                }
+                void handleCreateTc();
+              }}
               disabled={tcLoading}
               className="btn-primary inline-flex items-center gap-2"
             >
@@ -298,6 +326,19 @@ export default function SpecTab({ projectId: initialProjectId, onTcCreated, onPr
           </div>
         </div>
       )}
+
+      <LoginRequiredModal
+        open={showLoginRequired}
+        onClose={() => setShowLoginRequired(false)}
+        onLoginClick={() => {
+          setShowLoginRequired(false);
+          setShowLoginModal(true);
+        }}
+      />
+      <AdminLoginModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </div>
   );
 }

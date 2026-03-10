@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Loader2, Download, FileText, ChevronRight, Pencil, Trash2, Upload, ExternalLink, ArrowLeft } from "lucide-react";
 import DashboardCards, { PERSPECTIVE_LABEL } from "./DashboardCards";
 import IssuePanel from "./IssuePanel";
+import { LoginRequiredModal } from "./LoginRequiredModal";
+import { AdminLoginModal } from "./AdminLoginModal";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { exportTcToXlsx } from "@/lib/xlsx-export";
 import type { TestCase, TcBatch } from "@/types";
 
@@ -64,6 +67,9 @@ export default function TCTab({ projectId }: { projectId?: string }) {
   const [importing, setImporting] = useState(false);
   const [googleSheetsModal, setGoogleSheetsModal] = useState<{ formula: string; csvUrl: string; isLocalhost: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isAdmin } = useAdminAuth();
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const fetchBatches = useCallback(async () => {
     try {
@@ -176,7 +182,14 @@ export default function TCTab({ projectId }: { projectId?: string }) {
       setTestCases((prev) =>
         prev.map((t) => (t.id === tc.id ? { ...t, status: newStatus as TestCase["status"] } : t))
       );
-      if (newStatus === "FAIL") setIssuePanelTc({ ...tc, status: "FAIL" });
+      if (newStatus === "FAIL") {
+        if (!isAdmin) {
+          setIssuePanelTc(null);
+          setShowLoginRequired(true);
+        } else {
+          setIssuePanelTc({ ...tc, status: "FAIL" });
+        }
+      }
     } catch {
       alert("상태 변경에 실패했습니다.");
     }
@@ -257,25 +270,25 @@ export default function TCTab({ projectId }: { projectId?: string }) {
     return (
       <div className="flex items-center gap-2 py-12" style={{ color: "var(--text-secondary)" }}>
         <Loader2 className="animate-spin" size={24} />
-        <span>TC 목록 불러오는 중...</span>
+        <span>테스트 목록을 불러오는 중입니다...</span>
       </div>
     );
   }
 
   if (batches.length === 0) {
     return (
-      <div
+          <div
         className="py-16 text-center rounded-lg border"
         style={{
           background: "var(--bg-surface)",
           borderColor: "var(--border-default)",
         }}
-      >
-        <p className="text-lg font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
-          아직 생성된 TC가 없어요
+        >
+        <p className="text-base font-semibold mb-2" style={{ color: "var(--text-primary)" }}>
+          아직 만들어진 테스트가 없어요
         </p>
-        <p className="text-base mb-4" style={{ color: "var(--text-secondary)" }}>
-          스펙 변환 탭에서 기획서를 업로드하고 TC를 생성하거나, xlsx를 가져오세요
+        <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+          위쪽의 기획서 정리 탭에서 문서를 올려 테스트를 만들거나, 엑셀 파일을 가져와 주세요.
         </p>
         <input
           ref={fileInputRef}
@@ -310,7 +323,7 @@ export default function TCTab({ projectId }: { projectId?: string }) {
           }}
         >
           <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-            TC 배치 목록
+            테스트 작업 목록
           </p>
           <div className="space-y-1 mb-6">
             {batches.map((batch) => {
@@ -476,7 +489,7 @@ export default function TCTab({ projectId }: { projectId?: string }) {
         {tcLoading ? (
           <div className="flex items-center gap-2 py-12" style={{ color: "var(--text-secondary)" }}>
             <Loader2 className="animate-spin" size={24} />
-            <span>TC 불러오는 중...</span>
+            <span>테스트를 불러오는 중입니다...</span>
           </div>
         ) : testCases.length === 0 ? (
           <div
@@ -487,7 +500,7 @@ export default function TCTab({ projectId }: { projectId?: string }) {
             }}
           >
             <p style={{ color: "var(--text-secondary)" }}>
-              {selectedBatch ? `"${selectedBatch.title}"에 TC가 없습니다.` : "배치를 선택하세요."}
+              {selectedBatch ? `"${selectedBatch.title}"에 등록된 테스트가 없습니다.` : "왼쪽에서 작업을 선택해 주세요."}
             </p>
             <p className="mt-2 text-xs" style={{ color: "var(--text-subtle)" }}>
               뒤로가기 후 리스트에서 xlsx 가져오기로 추가할 수 있습니다.
@@ -746,7 +759,13 @@ export default function TCTab({ projectId }: { projectId?: string }) {
                             {isFail && (
                               <button
                                 type="button"
-                                onClick={() => setIssuePanelTc({ ...tc, status: "FAIL" })}
+                                onClick={() => {
+                                  if (!isAdmin) {
+                                    setShowLoginRequired(true);
+                                    return;
+                                  }
+                                  setIssuePanelTc({ ...tc, status: "FAIL" });
+                                }}
                                 className={`p-0.5 rounded text-xs inline-flex items-center gap-0.5 shrink-0 whitespace-nowrap ${
                                   !registeredTcIds.has(tc.tc_id) ? "btn-ghost" : ""
                                 }`}
@@ -859,6 +878,19 @@ export default function TCTab({ projectId }: { projectId?: string }) {
           setIssuePanelTc(null);
           fetchTcs();
         }}
+      />
+
+      <LoginRequiredModal
+        open={showLoginRequired}
+        onClose={() => setShowLoginRequired(false)}
+        onLoginClick={() => {
+          setShowLoginRequired(false);
+          setShowLoginModal(true);
+        }}
+      />
+      <AdminLoginModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
       />
     </div>
   );

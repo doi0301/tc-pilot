@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AdminAuthProvider } from "@/components/AdminAuthProvider";
 
 export const metadata: Metadata = {
   title: "TC Pilot — 기획 테스트 도구",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full">
-      <body className="antialiased min-h-screen flex flex-col">{children}</body>
+      <body className="antialiased min-h-screen flex flex-col">
+        <AdminAuthProvider>{children}</AdminAuthProvider>
+      </body>
     </html>
   );
 }
