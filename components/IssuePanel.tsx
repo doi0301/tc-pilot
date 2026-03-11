@@ -4,6 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { X, Loader2, Download, ImagePlus, Trash2 } from "lucide-react";
 import { exportIssuesToXlsx } from "@/lib/issue-xlsx-export";
 import type { TestCase, Issue } from "@/types";
+import { LoginRequiredModal } from "./LoginRequiredModal";
+import { AdminLoginModal } from "./AdminLoginModal";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const SEVERITY_OPTIONS: Issue["severity"][] = ["Critical", "Major", "Minor", "Low"];
 
@@ -32,6 +35,9 @@ export default function IssuePanel({
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isAdmin } = useAdminAuth();
+  const [showLoginRequired, setShowLoginRequired] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const isOpen = !!tc;
 
@@ -49,6 +55,10 @@ export default function IssuePanel({
   }, [tc]);
 
   const handleEnhance = async () => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     if (!tc || !actual.trim()) {
       setError("실제결과를 먼저 입력해주세요.");
       return;
@@ -80,6 +90,10 @@ export default function IssuePanel({
   };
 
   const handleSubmit = async () => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     const pid = projectId ?? tc?.project_id;
     if (!tc || !pid) return;
     if (!actual.trim()) {
@@ -120,6 +134,10 @@ export default function IssuePanel({
   };
 
   const handleXlsxBackup = () => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     if (!tc) return;
     const backupIssue: Issue = {
       tc_id: tc.tc_id,
@@ -134,6 +152,11 @@ export default function IssuePanel({
   };
 
   const handleScreenshotChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      e.target.value = "";
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -311,7 +334,13 @@ export default function IssuePanel({
             ) : (
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => {
+                  if (!isAdmin) {
+                    setShowLoginRequired(true);
+                    return;
+                  }
+                  fileInputRef.current?.click();
+                }}
                 disabled={uploading}
                 className="w-full py-4 px-3 rounded-lg border-2 border-dashed flex items-center justify-center gap-2 text-sm"
                 style={{
@@ -435,6 +464,18 @@ export default function IssuePanel({
           </button>
         </footer>
       </aside>
+      <LoginRequiredModal
+        open={showLoginRequired}
+        onClose={() => setShowLoginRequired(false)}
+        onLoginClick={() => {
+          setShowLoginRequired(false);
+          setShowLoginModal(true);
+        }}
+      />
+      <AdminLoginModal
+        open={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
     </>
   );
 }

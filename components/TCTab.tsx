@@ -121,12 +121,20 @@ export default function TCTab({ projectId }: { projectId?: string }) {
   }, [selectedBatchId, fetchTcs]);
 
   const handleBatchEdit = (batch: TcBatch) => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     if (batch.id === "__unbatched__") return;
     setEditingBatchId(batch.id);
     setEditingTitle(batch.title);
   };
 
   const handleBatchSave = async () => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     if (!editingBatchId) return;
     const title = editingTitle.trim();
     if (!title) {
@@ -152,6 +160,10 @@ export default function TCTab({ projectId }: { projectId?: string }) {
   };
 
   const handleBatchDelete = async (batch: TcBatch) => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     if (batch.id === "__unbatched__") return;
     if (!confirm(`"${batch.title}" 배치를 삭제할까요? (TC는 미분류로 이동됩니다)`)) return;
     try {
@@ -171,6 +183,10 @@ export default function TCTab({ projectId }: { projectId?: string }) {
   };
 
   const handleStatusChange = async (tc: TestCase, newStatus: string) => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     if (!tc.id) return;
     try {
       const res = await fetch(`/api/tc/${tc.id}`, {
@@ -213,6 +229,10 @@ export default function TCTab({ projectId }: { projectId?: string }) {
   };
 
   const handleXlsxImportClick = () => {
+    if (!isAdmin) {
+      setShowLoginRequired(true);
+      return;
+    }
     fileInputRef.current?.click();
   };
 
