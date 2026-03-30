@@ -166,10 +166,121 @@
   --breakpoint-xl: 1280px;
 }
 
+/* FlowDay Deep Space — docs/design/tc-pilot-flowday-dark-handoff-v1.0.md */
+.dark {
+  --background: #0b1222;
+  --foreground: #f1f5f9;
+  --card: #111c2e;
+  --card-foreground: #f1f5f9;
+  --popover: #111c2e;
+  --popover-foreground: #f1f5f9;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e3050;
+  --secondary-foreground: #f1f5f9;
+  --muted: #182740;
+  --muted-foreground: #94a3b8;
+  --accent: #1e3050;
+  --accent-foreground: #f1f5f9;
+  --destructive: #ef4444;
+  --border: #1e2d42;
+  --input: #182740;
+  --ring: #3b82f6;
+  --chart-1: #3b82f6;
+  --chart-2: #10b981;
+  --chart-3: #8b5cf6;
+  --chart-4: #f59e0b;
+  --chart-5: #ec4899;
+  --radius: 0.625rem;
+  --sidebar: #0f1629;
+  --sidebar-foreground: #94a3b8;
+  --sidebar-primary: #f1f5f9;
+  --sidebar-primary-foreground: #0b1222;
+  --sidebar-accent: rgb(59 130 246 / 0.15);
+  --sidebar-accent-foreground: #60a5fa;
+  --sidebar-border: #1e2d42;
+  --sidebar-ring: #3b82f6;
+
+  /* 셸용 레거시 토큰 — 기존 컴포넌트(var(--bg-*), var(--text-*))과 호환 */
+  --bg-page: var(--background);
+  --bg-surface: var(--card);
+  --bg-sidebar: var(--sidebar);
+  --bg-hover: #1e3050;
+  --bg-selected: rgba(224, 69, 69, 0.16);
+  --bg-elevated: var(--card);
+  --bg-overlay: rgba(7, 11, 20, 0.72);
+
+  --text-primary: var(--foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-subtle: #64748b;
+  --text-inverse: #ffffff;
+  --text-link: var(--point-default);
+  --text-point: var(--point-default);
+
+  --border-default: var(--border);
+  --border-bold: #2a3f5c;
+  --border-subtle: #1a2538;
+  --border-focused: var(--point-default);
+
+  --point-subtle: rgba(224, 69, 69, 0.14);
+  --point-muted: rgba(224, 69, 69, 0.22);
+
+  /* 다크 카드 위 P/F·태그 가독성 보조 (도메인 의미 유지) */
+  --status-pass-bg: rgba(16, 185, 129, 0.12);
+  --status-pass-text: #4ade80;
+  --status-pass-badge: rgba(16, 185, 129, 0.2);
+  --status-pass-dot: #34d399;
+
+  --status-fail-bg: rgba(239, 68, 68, 0.12);
+  --status-fail-text: #f87171;
+  --status-fail-badge: rgba(239, 68, 68, 0.18);
+  --status-fail-dot: #f87171;
+
+  --status-progress-bg: rgba(245, 158, 11, 0.12);
+  --status-progress-text: #fbbf24;
+  --status-progress-badge: rgba(245, 158, 11, 0.18);
+  --status-progress-dot: #fbbf24;
+
+  --status-pending-bg: rgba(148, 163, 184, 0.1);
+  --status-pending-text: #94a3b8;
+  --status-pending-badge: rgba(148, 163, 184, 0.14);
+  --status-pending-dot: #94a3b8;
+
+  --tag-normal-bg: rgba(16, 185, 129, 0.12);
+  --tag-normal-text: #4ade80;
+  --tag-normal-dot: #34d399;
+
+  --tag-exception-bg: rgba(245, 158, 11, 0.12);
+  --tag-exception-text: #fbbf24;
+  --tag-exception-dot: #fbbf24;
+
+  --tag-authority-bg: rgba(139, 92, 246, 0.14);
+  --tag-authority-text: #c4b5fd;
+  --tag-authority-dot: #a78bfa;
+
+  --tag-error-bg: rgba(239, 68, 68, 0.12);
+  --tag-error-text: #f87171;
+  --tag-error-dot: #f87171;
+
+  --tag-data-bg: rgba(59, 130, 246, 0.14);
+  --tag-data-text: #93c5fd;
+  --tag-data-dot: #60a5fa;
+
+  --priority-p4-bg: #334155;
+  --priority-p4-text: #e2e8f0;
+
+  --severity-low-bg: #334155;
+  --severity-low-text: #e2e8f0;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+}
+
 body {
-  font-family: var(--font-primary);
-  color: var(--text-primary);
-  background: var(--bg-page);
+  @apply bg-background text-foreground;
 }
 
 /* 기본 버튼 스타일 초기화 (브라우저 기본 검정 테두리 제거) */

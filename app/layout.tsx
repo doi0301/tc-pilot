@@ -1,6 +1,13 @@
 import type { Metadata } from "next";
+import { JetBrains_Mono } from "next/font/google";
+import "pretendard/dist/web/variable/pretendardvariable.css";
 import "./globals.css";
 import { AdminAuthProvider } from "@/components/AdminAuthProvider";
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
   title: "TC Pilot — 기획 테스트 도구",
@@ -13,8 +20,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className="h-full">
-      <body className="antialiased min-h-screen flex flex-col">
+    <html lang="ko" className="h-full dark">
+      <body
+        className={`${jetbrainsMono.variable} font-sans antialiased min-h-screen flex flex-col bg-background text-foreground`}
+      >
         <AdminAuthProvider>{children}</AdminAuthProvider>
       </body>
     </html>
